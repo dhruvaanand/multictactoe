@@ -1,0 +1,9 @@
+CREATE DATABASE IF NOT EXISTS multictactoe;
+USE multictactoe;
+
+CREATE TABLE IF NOT EXISTS users (
+    uid VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    elo_rating INT DEFAULT 1200,
+    is_online BOOLEAN DEFAULT FALSE
+);
