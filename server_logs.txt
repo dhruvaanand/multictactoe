@@ -1,0 +1,80 @@
+INFO:     Started server process [556155]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
+Processing login frame...
+Comparing against 233 records in database...
+Match found: UID=2025101011  distance=0.000
+INFO:     127.0.0.1:41216 - "GET /login.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41216 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+Processing login frame...
+Comparing against 233 records in database...
+Match found: UID=2025101071  distance=0.443
+INFO:     127.0.0.1:58812 - "GET /login.html HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:38728 - "GET /login.html HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:38728 - "GET /login.html HTTP/1.1" 304 Not Modified
+Processing login frame...
+No face detected in login frame.
+INFO:     127.0.0.1:52570 - "POST /login HTTP/1.1" 401 Unauthorized
+Processing login frame...
+Comparing against 233 records in database...
+Match found: UID=2025101022  distance=0.490
+INFO:     127.0.0.1:52570 - "POST /login HTTP/1.1" 200 OK
+Processing login frame...
+No face detected in login frame.
+INFO:     127.0.0.1:57956 - "POST /login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:37926 - "GET /gameboard.html HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:37932 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52074 - "GET /game.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35912 - "GET /login.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35912 - "GET /hud_core.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35912 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:35924 - "GET /lobby.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35924 - "GET /hud_core.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:57294 - "GET /game.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55236 - "GET /leaderboard.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55236 - "GET /hud_core.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:52810 - "GET / HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52812 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:45638 - "GET / HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:45648 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56166 - "GET /login.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56166 - "GET /hud_core.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56170 - "GET /fui_audio.js HTTP/1.1" 200 OK
+Processing login frame...
+Comparing against 233 records in database...
+Match found: UID=2025101022  distance=0.462
+INFO:     127.0.0.1:51600 - "GET /lobby.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40492 - "GET /lobby.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48818 - "GET /lobby.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33416 - "GET /lobby.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51600 - "GET /fui_audio.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40492 - "GET /lobby.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51610 - "GET /hud_core.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:48818 - "GET /hud_core.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33424 - "GET /fui_audio.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40492 - "GET /fui_audio.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:33416 - "GET /hud_core.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:40492 - "GET /fui_audio.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:33416 - "GET /hud_core.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:33416 - "GET /hud_core.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:40492 - "GET /fui_audio.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:33424 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:47844 - "GET /game.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47844 - "GET /hud_core.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:47852 - "GET /fui_audio.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:47868 - "GET /leaderboard.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47868 - "GET /login.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37900 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+Processing login frame...
+Error encoding image: cannot identify image file <_io.BytesIO object at 0x7fd2282767a0>
+No face detected in login frame.
+INFO:     127.0.0.1:47874 - "POST /login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:38690 - "GET /lobby.html HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:38690 - "GET /hud_core.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:38702 - "GET /fui_audio.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:56444 - "GET /game.html HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:56460 - "GET /leaderboard.html HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:41762 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:41768 - "GET /login.html HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:41768 - "GET /fui_audio.js HTTP/1.1" 304 Not Modified

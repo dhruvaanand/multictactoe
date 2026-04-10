@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARENA_OS // BIOMETRIC_HANDSHAKE</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Design System -->
+    <link rel="stylesheet" href="hud_core.css">
+    <script src="fui_audio.js"></script>
+    <style>
+        .webcam-hud {
+            position: relative;
+            width: 500px;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            border: 2px solid var(--matrix-green-dim);
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 0 40px var(--matrix-green-faint);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .targeting-ring {
+            position: absolute;
+            inset: 10px;
+            border: 1px dashed var(--matrix-green);
+            border-radius: 50%;
+            animation: rotate 20s linear infinite;
+            pointer-events: none;
+        }
+
+        .targeting-ring-inner {
+            position: absolute;
+            inset: 30px;
+            border: 1px solid var(--matrix-green-dim);
+            border-radius: 50%;
+            animation: rotate 10s linear reverse infinite;
+            pointer-events: none;
+        }
+
+        .targeting-ring-inner::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: var(--matrix-green);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--matrix-green);
+        }
+
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(1) contrast(1.2) sepia(1) hue-rotate(80deg);
+            opacity: 0.7;
+            transform: scaleX(-1);
+        }
+
+        .scanner-line {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: var(--matrix-green);
+            box-shadow: 0 0 20px var(--matrix-green);
+            z-index: 5;
+            animation: scan 4s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { top: -5%; }
+            100% { top: 105%; }
+        }
+
+        .auth-status {
+            text-align: center;
+            margin-top: 20px;
+            min-height: 24px;
+        }
+
+        .auth-status.success { color: var(--matrix-green); }
+        .auth-status.error { color: var(--tactical-red); }
+
+        .metadata-label {
+            font-size: 9px;
+            opacity: 0.5;
+            margin-bottom: 2px;
+        }
+    </style>
+</head>
+<body class="boot-anim">
+    <div class="scanlines"></div>
+    <div class="grid"></div>
+    <div class="vignette"></div>
+
+    <div class="hud-layout">
+        <!-- HEADER -->
+        <header style="grid-column: 1 / -1; border-bottom: 1px solid var(--matrix-green-dim); display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 5px;">
+            <div>
+                <div class="metadata-label">NODE: ARENA_ALPHA_01 (40.7128, -74.0060)</div>
+                <div style="font-family: var(--font-display); font-weight: bold; font-size: 18px;">IDENTITY_VERIFICATION_MODULE</div>
+            </div>
+            <div style="text-align: right;">
+                <div class="metadata-label">SYS_TIME_UTC</div>
+                <div id="clock" style="font-family: var(--font-mono); font-size: 16px;">00:00:00:00</div>
+            </div>
+        </header>
+
+        <!-- LEFT SIDEBAR: LOGS -->
+        <aside class="sidebar-left">
+            <div class="fui-box" style="height: 100%;">
+                <div class="fui-box-inner"></div>
+                <div style="margin-bottom: 15px; border-bottom: 1px solid var(--matrix-green-dim); padding-bottom: 5px;">
+                    [ TERMINAL_OUTPUT ]
+                </div>
+                <div id="log-container" class="log-container">
+                    <!-- Logs will be inserted here -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN VIEW: SCANNER -->
+        <main class="main-view" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="webcam-hud">
+                <div class="targeting-ring"></div>
+                <div class="targeting-ring-inner"></div>
+                <div class="scanner-line"></div>
+                <video id="webcam" autoplay playsinline></video>
+            </div>
+            
+            <div style="margin-top: 40px; text-align: center;">
+                <div class="metadata-label">BIOMETRIC_HANDSHAKE_TRIGGER</div>
+                <button id="capture-btn" class="fui-btn" style="width: 300px;">INITIATE_AUTH_SEQUENCE</button>
+                <div id="auth-status" class="auth-status">READY_FOR_SCAN</div>
+            </div>
+        </main>
+
+        <!-- RIGHT SIDEBAR: TELEMETRY -->
+        <aside class="sidebar-right">
+            <div class="sidebar-stack" style="display: flex; flex-direction: column; gap: 20px; height: 100%;">
+                <div class="fui-box" style="flex: 1;">
+                    <div class="fui-box-inner"></div>
+                    <div class="metadata-label">BIT_STREAM_77</div>
+                    <div class="telemetry-bar" id="telemetry-bits"></div>
+                    <div class="oscilloscope"></div>
+                    <div style="font-size: 9px; margin-top: 10px;">
+                        PACKET_LOSS: 0.00%<br>
+                        LATENCY: 12ms<br>
+                        JITTER: 2.1ms
+                    </div>
+                </div>
+                <div class="fui-box" style="flex: 1;">
+                    <div class="fui-box-inner"></div>
+                    <div class="metadata-label">BIO_VECTORS_DATA</div>
+                    <div id="bio-vectors" style="font-size: 8px; line-height: 1.4; opacity: 0.7;">
+                        <!-- Mock hex data -->
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- FOOTER: NAV -->
+        <footer style="grid-column: 1 / -1; border-top: 1px solid var(--matrix-green-dim); display: flex; align-items: center; justify-content: space-between;">
+            <div style="font-family: var(--font-mono); font-size: 10px;">
+                ROOT / SYSTEMS / AUTH / <span style="color: var(--fui-white);">V_HANDSHAKE_PROT_8.7</span>
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <span class="metadata-label">ENCRYPTION: RSA-4096 / ACTIVE</span>
+                <span class="metadata-label">THREAT_LEVEL: ZERO</span>
+            </div>
+        </footer>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('capture-btn');
+        const logContainer = document.getElementById('log-container');
+        const statusEl = document.getElementById('auth-status');
+        const telemetryBits = document.getElementById('telemetry-bits');
+        const bioVectors = document.getElementById('bio-vectors');
+
+        // Initialize HUD noise
+        function initNoise() {
+            // Telemetry bars
+            for(let i=0; i<30; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'telemetry-cell';
+                telemetryBits.appendChild(cell);
+            }
+
+            setInterval(() => {
+                const cells = telemetryBits.querySelectorAll('.telemetry-cell');
+                cells.forEach(c => c.classList.remove('active'));
+                const randCount = Math.floor(Math.random() * 5) + 3;
+                for(let i=0; i<randCount; i++) {
+                    const idx = Math.floor(Math.random() * 30);
+                    cells[idx].classList.add('active');
+                }
+
+                // Random bio vectors
+                let vectorData = "";
+                for(let i=0; i<5; i++) {
+                    vectorData += "0x" + Math.floor(Math.random() * 0xFFFFFF).toString(16).toUpperCase().padStart(6, '0') + " ";
+                }
+                bioVectors.innerHTML = vectorData + "<br>" + bioVectors.innerHTML.slice(0, 500);
+            }, 150);
+        }
+
+        function addLog(msg, type = 'default') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const time = new Date().toLocaleTimeString('en-GB', { hour12: false }) + "." + new Date().getMilliseconds().toString().padStart(3, '0');
+            entry.innerHTML = `<span class="timestamp">[${time}]</span> <span class="message">${msg}</span>`;
+            logContainer.prepend(entry);
+            if (logContainer.childNodes.length > 50) logContainer.removeChild(logContainer.lastChild);
+            
+            // SFX
+            if (window.HUDAudio) HUDAudio.beep();
+        }
+
+        async function setupWebcam() {
+            addLog("SEARCHING_FOR_OPTICAL_SENSOR...");
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                addLog("SENSOR_LINK_ESTABLISHED: [640x480_YUV422]", "success");
+            } catch (err) {
+                addLog("CRITICAL_ERR: SENSOR_ACCESS_DENIED", "error");
+                statusEl.textContent = "SENSOR_ERROR";
+                statusEl.className = "auth-status error";
+            }
+        }
+
+        // Clock logic
+        setInterval(() => {
+            const n = new Date();
+            document.getElementById('clock').textContent = n.toISOString().split('T')[1].replace('Z', '').slice(0, 11);
+        }, 33);
+
+        captureBtn.addEventListener('click', async () => {
+            if (window.HUDAudio) HUDAudio.click();
+            if (window.HUDAudio) HUDAudio.scan();
+
+            addLog("V_HANDSHAKE_INIT: CAPTURING_BIOMETRIC_VECTORS...");
+            statusEl.textContent = "SCANNING_VECTORS...";
+            statusEl.className = "auth-status";
+            captureBtn.disabled = true;
+
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+            try {
+                addLog(`UPLOADING_VECTORS: [${(imageData.length/1024).toFixed(1)} KB]`);
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    addLog(`AUTH_SUCCESS: UID_${result.uid}_VERIFIED`, "success");
+                    statusEl.textContent = `ACCESS_GRANTED // UID: ${result.uid}`;
+                    statusEl.className = "auth-status success";
+                    captureBtn.textContent = "VERIFIED";
+                } else {
+                    addLog("AUTH_DENIED: ZERO_MATCHES_RETURNED", "error");
+                    statusEl.textContent = "ACCESS_DENIED // NO_MATCH";
+                    statusEl.className = "auth-status error";
+                    captureBtn.disabled = false;
+                    captureBtn.textContent = "RE_INITIATE_AUTH";
+                }
+            } catch (err) {
+                addLog("COMM_ERROR: ENDPOINT_UNREACHABLE", "error");
+                statusEl.textContent = "NETWORK_ERROR";
+                statusEl.className = "auth-status error";
+                captureBtn.disabled = false;
+            }
+        });
+
+        initNoise();
+        setupWebcam();
+        addLog("SYSTEM_BOOT_COMPLETE: TERMINAL_READY");
+    </script>
+</body>
+</html>

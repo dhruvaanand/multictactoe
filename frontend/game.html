@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARENA_OS // TACTICAL_ENGAGEMENT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="hud_core.css">
+    <script src="fui_audio.js"></script>
+    <style>
+        .engagement-matrix {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 15px;
+            width: 500px;
+            height: 500px;
+            background: var(--matrix-green-faint);
+            padding: 15px;
+            position: relative;
+        }
+
+        .matrix-cell {
+            border: 1px solid var(--matrix-green-dim);
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 4px;
+            padding: 4px;
+            background: rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+
+        .matrix-cell:hover {
+            border-color: var(--matrix-green);
+            background: var(--matrix-green-faint);
+        }
+
+        .sub-cell {
+            border: 1px solid var(--matrix-green-faint);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-family: var(--font-display);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sub-cell:hover {
+            background: var(--matrix-green-dim);
+            color: var(--fui-white);
+        }
+
+        .marker-X { color: var(--matrix-green); text-shadow: 0 0 10px var(--matrix-green); }
+        .marker-O { color: var(--tactical-red); text-shadow: 0 0 10px var(--tactical-red); }
+
+        .player-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            border: 1px solid var(--matrix-green-dim);
+            margin-bottom: 20px;
+        }
+
+        .player-status-active {
+            border-color: var(--matrix-green);
+            box-shadow: 0 0 15px var(--matrix-green-faint);
+            background: var(--matrix-green-faint);
+        }
+
+        .turn-indicator {
+            font-family: var(--font-display);
+            font-size: 24px;
+            text-align: center;
+            margin: 20px 0;
+            color: var(--matrix-green);
+            animation: flicker 2s alternate infinite;
+        }
+    </style>
+</head>
+<body class="boot-anim">
+    <div class="scanlines"></div>
+    <div class="grid"></div>
+    <div class="vignette"></div>
+
+    <div class="hud-layout">
+        <header style="grid-column: 1 / -1; border-bottom: 1px solid var(--matrix-green-dim); display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 5px;">
+            <div>
+                <div style="font-size: 9px; opacity: 0.5;">ENGAGEMENT_ID: SORTIE_DELTA_009</div>
+                <div style="font-family: var(--font-display); font-weight: bold; font-size: 18px;">MULTI_TACTICAL_ENGAGEMENT_INTERFACE</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 9px; opacity: 0.5;">REAL_TIME_STREAM</div>
+                <div id="clock" style="font-family: var(--font-mono); font-size: 16px;">00:00:00:00</div>
+            </div>
+        </header>
+
+        <aside class="sidebar-left">
+            <div class="fui-box" style="height: 100%;">
+                <div class="fui-box-inner"></div>
+                <div class="metadata-label">PLAYER_1_VECTORS</div>
+                <div class="player-card player-status-active">
+                    <div style="width: 40px; height: 40px; border: 1px solid var(--matrix-green); display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--matrix-green);">X</div>
+                    <div>
+                        <div style="font-weight: bold;">OPERATOR_YOU</div>
+                        <div style="font-size: 9px; opacity: 0.7;">CONNECTED // LATENCY: 12ms</div>
+                    </div>
+                </div>
+
+                <div class="metadata-label">PLAYER_2_VECTORS</div>
+                <div class="player-card">
+                    <div style="width: 40px; height: 40px; border: 1px solid var(--tactical-red); display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--tactical-red);">O</div>
+                    <div>
+                        <div style="font-weight: bold;">OPPONENT_NEHA</div>
+                        <div style="font-size: 9px; opacity: 0.7;">CONNECTED // LATENCY: 45ms</div>
+                    </div>
+                </div>
+
+                <div class="metadata-label">ENGAGEMENT_TELEMETRY</div>
+                <div class="oscilloscope"></div>
+                <div style="font-size: 9px; line-height: 1.6;">
+                    VECTORS_X_POSITION: 42.11<br>
+                    VECTORS_Y_POSITION: 9.04<br>
+                    SYNCHRONIZATION: 99.8%
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-view" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="turn-indicator">_YOUR_TURN_</div>
+            <div class="engagement-matrix" id="matrix">
+                <!-- 9 matrix cells, each with 9 sub-cells -->
+            </div>
+        </main>
+
+        <aside class="sidebar-right">
+            <div class="fui-box" style="height: 100%;">
+                <div class="fui-box-inner"></div>
+                <div class="metadata-label">ACTION_LOG_QUEUE</div>
+                <div id="log-container" class="log-container">
+                    <!-- Engagement logs -->
+                </div>
+                
+                <div style="margin-top: 40px;">
+                    <button class="fui-btn" style="width: 100%; border-color: var(--tactical-red); color: var(--tactical-red);">ABORT_MISSION</button>
+                </div>
+            </div>
+        </aside>
+
+        <footer style="grid-column: 1 / -1; border-top: 1px solid var(--matrix-green-dim); display: flex; align-items: center; justify-content: space-between;">
+            <div style="font-family: var(--font-mono); font-size: 10px;">
+                ROOT / SYSTEMS / COMBAT / <span style="color: var(--fui-white);">GRID_9X9_ULTIMATE</span>
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <span class="metadata-label">RULES: MULTI_TICTACTOE_V1</span>
+                <span class="metadata-label">MODE: RANKED_SORTIE</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const matrix = document.getElementById('matrix');
+        const logContainer = document.getElementById('log-container');
+
+        function initMatrix() {
+            for(let m=0; m<9; m++) {
+                const cell = document.createElement('div');
+                cell.className = 'matrix-cell';
+                cell.dataset.index = m;
+                
+                for(let s=0; s<9; s++) {
+                    const subCell = document.createElement('div');
+                    subCell.className = 'sub-cell';
+                    subCell.dataset.matrix = m;
+                    subCell.dataset.sub = s;
+                    subCell.addEventListener('click', () => handleMove(m, s, subCell));
+                    cell.appendChild(subCell);
+                }
+                matrix.appendChild(cell);
+            }
+        }
+
+        function handleMove(m, s, el) {
+            if (el.textContent) return;
+            if (window.HUDAudio) HUDAudio.click();
+            el.textContent = 'X';
+            el.className += ' marker-X';
+            addLog(`MOVE_IDENTIFIED: POS_${m}_${s} // TYPE_X`);
+            
+            // Mock opponent move
+            setTimeout(() => {
+                addLog(`INBOUND_MOVE: VECTOR_CALCULATING...`);
+                // Simple AI or random for mock
+            }, 1000);
+        }
+
+        function addLog(msg) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
+            entry.innerHTML = `<span class="timestamp">[${time}]</span> <span class="message">${msg}</span>`;
+            logContainer.prepend(entry);
+            
+            // SFX
+            if (window.HUDAudio) HUDAudio.beep();
+        }
+
+        // Clock logic
+        setInterval(() => {
+            const n = new Date();
+            document.getElementById('clock').textContent = n.toISOString().split('T')[1].replace('Z', '').slice(0, 11);
+        }, 33);
+
+        initMatrix();
+        addLog("COMBAT_SYSTEMS_ONLINE");
+        addLog("AWAITING_INITIAL_VECTOR");
+    </script>
+</body>
+</html>
