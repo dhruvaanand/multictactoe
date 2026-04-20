@@ -308,8 +308,6 @@
                     statusEl.className = "auth-status success";
                     captureBtn.textContent = "VERIFIED";
 
-                    // Store UID and redirect to lobby
-                    localStorage.setItem('arena_operator_uid', result.uid);
                     setTimeout(() => {
                         window.location.href = '/lobby.html';
                     }, 1500);
@@ -336,7 +334,6 @@
             });
             const result = await response.json();
             if (response.ok) {
-                localStorage.setItem('arena_operator_uid', result.uid);
                 window.location.href = '/lobby.html';
             }
         }

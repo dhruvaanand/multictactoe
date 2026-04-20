@@ -1,7 +1,7 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
+from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 import json
-from backend.database import mongo_db
-from backend.game import GameSession, active_games
+from backend.game import GameSession, active_games, is_user_in_unfinished_game
+from backend.session import get_uid_from_request, get_uid_from_websocket
 
 router = APIRouter()
 
@@ -23,8 +23,14 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-@router.websocket("/ws/lobby/{uid}")
-async def lobby_websocket(websocket: WebSocket, uid: str, request: Request):
+@router.websocket("/ws/lobby")
+async def lobby_websocket(websocket: WebSocket):
+    try:
+        uid = get_uid_from_websocket(websocket)
+    except HTTPException:
+        await websocket.close(code=4401)
+        return
+
     await manager.connect(uid, websocket)
     
     mysql_pool = websocket.app.state.mysql
@@ -61,17 +67,28 @@ async def lobby_websocket(websocket: WebSocket, uid: str, request: Request):
                     }
                     await manager.active_connections[target_uid].send_json(start_msg)
                     await manager.active_connections[uid].send_json(start_msg)
+            elif message.get("type") == "decline_invite":
+                target_uid = message.get("from")
+                if target_uid in manager.active_connections:
+                    await manager.active_connections[target_uid].send_json(
+                        {
+                            "type": "invite_declined",
+                            "by": uid,
+                        }
+                    )
 
     except WebSocketDisconnect:
         manager.disconnect(uid)
-        async with mysql_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("UPDATE users SET is_online = FALSE WHERE uid = %s", (uid,))
-            await conn.commit()
-        await manager.broadcast({"type": "player_update", "uid": uid, "status": "offline"})
+        if not is_user_in_unfinished_game(uid):
+            async with mysql_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute("UPDATE users SET is_online = FALSE WHERE uid = %s", (uid,))
+                await conn.commit()
+            await manager.broadcast({"type": "player_update", "uid": uid, "status": "offline"})
 
 @router.get("/lobby/players")
 async def get_players(request: Request):
+    _ = get_uid_from_request(request)
     mysql_pool = request.app.state.mysql
     async with mysql_pool.acquire() as conn:
         async with conn.cursor() as cur:

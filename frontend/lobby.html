@@ -113,8 +113,9 @@
                 <div class="fui-box-inner"></div>
                 <div class="metadata-label">PLAYER_STATISTICS</div>
                 <div style="text-align: center; margin: 20px 0;">
-                    <div class="rank-badge">SR-1250</div>
-                    <div style="font-size: 10px;">GLOBAL_RANK: #442</div>
+                    <div id="current-operator-elo" class="rank-badge">SR-0000</div>
+                    <div id="current-operator-name" style="font-size: 12px; font-weight: bold; margin-top: 4px;">OPERATOR_UNKNOWN</div>
+                    <div id="current-operator-uid" style="font-size: 10px; opacity: 0.8;">UID: UNKNOWN</div>
                 </div>
                 <div class="oscilloscope" style="height: 60px;"></div>
                 <div class="metadata-label">COMBAT_LOGS</div>
@@ -173,13 +174,37 @@
         const rosterBody = document.getElementById('roster-body');
         const activeGames = document.getElementById('active-games');
         const logContainer = document.getElementById('log-container');
+        const currentOperatorName = document.getElementById('current-operator-name');
+        const currentOperatorUid = document.getElementById('current-operator-uid');
+        const currentOperatorElo = document.getElementById('current-operator-elo');
 
-        const currentUid = localStorage.getItem('arena_operator_uid') || 'GUEST';
+        let currentUid = 'UNKNOWN';
         let ws;
+
+        async function fetchMe() {
+            try {
+                const response = await fetch('/me');
+                if (!response.ok) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+                const me = await response.json();
+                currentUid = me.uid;
+                currentOperatorName.textContent = me.name || 'OPERATOR_UNKNOWN';
+                currentOperatorUid.textContent = `UID: ${me.uid}`;
+                currentOperatorElo.textContent = `SR-${me.elo}`;
+            } catch (err) {
+                window.location.href = '/login.html';
+            }
+        }
 
         async function fetchPlayers() {
             try {
                 const response = await fetch('/lobby/players');
+                if (response.status === 401) {
+                    window.location.href = '/login.html';
+                    return;
+                }
                 const players = await response.json();
                 renderRoster(players);
             } catch (err) {
@@ -194,7 +219,7 @@
                     <td style="font-weight: bold;">${p.name}</td>
                     <td>${p.elo}</td>
                     <td><span class="status-tag ${p.status === 'ONLINE' ? 'status-online' : 'status-offline'}">${p.status}</span></td>
-                    <td><button class="fui-btn" style="padding: 5px 10px; font-size: 10px;" ${p.status === 'OFFLINE' ? 'disabled' : ''} onclick="sendInvite('${p.uid}')">INVITE</button></td>
+                    <td><button class="fui-btn" style="padding: 5px 10px; font-size: 10px;" ${(p.status === 'OFFLINE' || p.uid === currentUid) ? 'disabled' : ''} onclick="sendInvite('${p.uid}')">INVITE</button></td>
                 </tr>
             `).join('');
         }
@@ -208,7 +233,7 @@
 
         function connectLobby() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws/lobby/${currentUid}`);
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/lobby`);
 
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
@@ -220,9 +245,14 @@
                     if (confirm(`Incoming sortie request from UID ${data.from}. Accept?`)) {
                         addLog('MSG: SORTIE_ACCEPTED');
                         ws.send(JSON.stringify({ type: 'accept_invite', from: data.from }));
+                    } else {
+                        addLog('MSG: SORTIE_DECLINED');
+                        ws.send(JSON.stringify({ type: 'decline_invite', from: data.from }));
                     }
+                } else if (data.type === 'invite_declined') {
+                    addLog(`MSG: INVITE_DECLINED_BY_${data.by}`);
                 } else if (data.type === 'game_start') {
-                    addLog(`MSG: GAME_STARTING_ID_${data.id}`);
+                    addLog(`MSG: GAME_STARTING_ID_${data.game_id}`);
                     setTimeout(() => {
                         window.location.href = `/game.html?id=${data.game_id}`;
                     }, 1000);
@@ -265,11 +295,14 @@
             document.getElementById('clock').textContent = n.toISOString().split('T')[1].replace('Z', '').slice(0, 11);
         }, 33);
 
-        fetchPlayers();
-        connectLobby();
-        renderGames();
-        addLog("SECTOR_SCAN_COMPLETE");
-        addLog("ROSTER_SYNCHRONIZED_WITH_CORE");
+        (async () => {
+            await fetchMe();
+            fetchPlayers();
+            connectLobby();
+            renderGames();
+            addLog("SECTOR_SCAN_COMPLETE");
+            addLog("ROSTER_SYNCHRONIZED_WITH_CORE");
+        })();
     </script>
 </body>
 

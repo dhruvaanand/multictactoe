@@ -89,6 +89,15 @@
                 <div class="fui-box-inner"></div>
                 <div class="metadata-label">ELITE_METRICS</div>
                 <div style="padding: 10px;">
+                    <div class="stat-label">CURRENT_OPERATOR</div>
+                    <div id="me-name" class="stat-value">OPERATOR_UNKNOWN</div>
+                    <div id="me-uid" style="font-size: 10px; opacity: 0.8;">UID: UNKNOWN</div>
+
+                    <div style="margin-top: 12px;" class="stat-label">YOUR_ELO</div>
+                    <div id="me-elo" class="stat-value">SR-0000</div>
+
+                    <div style="margin-top: 16px; border-top: 1px solid var(--matrix-green-dim);"></div>
+
                     <div class="stat-label">TOP_OPERATOR_ELO</div>
                     <div class="stat-value">SR-2850</div>
                     <div class="performance-bar"><div class="performance-fill" style="width: 95%;"></div></div>
@@ -133,25 +142,34 @@
     <script>
         const leaderboard = document.getElementById('leaderboard');
         const logContainer = document.getElementById('log-container');
+        const meName = document.getElementById('me-name');
+        const meUid = document.getElementById('me-uid');
+        const meElo = document.getElementById('me-elo');
 
-        const topOperators = [
-            { name: 'KISHEN_N', elo: 2850, games: 1420, winRate: 78 },
-            { name: 'DHRUVA_ANAND', elo: 2710, games: 980, winRate: 72 },
-            { name: 'NEHA_DUVVURU', elo: 2650, games: 1120, winRate: 70 },
-            { name: 'SOHAM_C', elo: 2420, games: 850, winRate: 68 },
-            { name: 'VARSHITH_A', elo: 2380, games: 920, winRate: 65 },
-            { name: 'ANYA_JAIN', elo: 2210, games: 740, winRate: 62 },
-            { name: 'ARUSHA_B', elo: 2150, games: 680, winRate: 60 },
-            { name: 'VEERAJ_L', elo: 2100, games: 590, winRate: 58 },
-            { name: 'SURYANSH_R', elo: 2050, games: 540, winRate: 55 },
-            { name: 'MIKHAIL_C', elo: 1980, games: 480, winRate: 52 },
-        ];
+        async function fetchMe() {
+            try {
+                const response = await fetch('/me');
+                if (!response.ok) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+                const me = await response.json();
+                meName.textContent = me.name || 'OPERATOR_UNKNOWN';
+                meUid.textContent = `UID: ${me.uid}`;
+                meElo.textContent = `SR-${me.elo}`;
+            } catch {
+                window.location.href = '/login.html';
+            }
+        }
 
-        function renderLeaderboard() {
-            leaderboard.innerHTML = topOperators.map((op, i) => `
+        function renderLeaderboard(players) {
+            const top = players.slice(0, 10);
+            leaderboard.innerHTML = top.map((op, i) => {
+                const winProxy = Math.max(30, Math.min(95, Math.round(((op.elo - 800) / 2000) * 100)));
+                return `
                 <div class="leader-entry">
                     <div class="rank-num">#${(i+1).toString().padStart(2, '0')}</div>
-                    <div style="font-size: 9px; opacity: 0.5;">UID: ${2025111001 + i}</div>
+                    <div style="font-size: 9px; opacity: 0.5;">UID: ${op.uid}</div>
                     <div style="font-weight: bold; font-size: 14px;">${op.name}</div>
                     <div style="text-align: right;">
                         <div class="stat-label">SR_RATING</div>
@@ -159,11 +177,27 @@
                     </div>
                     <div style="padding-left: 20px;">
                         <div class="stat-label">WIN_PROBABILITY</div>
-                        <div class="performance-bar"><div class="performance-fill" style="width: ${op.winRate}%;"></div></div>
-                        <div style="font-size: 8px; text-align: right;">${op.winRate}%</div>
+                        <div class="performance-bar"><div class="performance-fill" style="width: ${winProxy}%;"></div></div>
+                        <div style="font-size: 8px; text-align: right;">${winProxy}%</div>
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
+        }
+
+        async function fetchLeaderboard() {
+            try {
+                const response = await fetch('/leaderboard');
+                const players = await response.json();
+                if (!response.ok) {
+                    addLog('QUERY_FAILED');
+                    return;
+                }
+                renderLeaderboard(players);
+                addLog(`QUERY_EXECUTED: ${players.length}_OPERATORS`);
+            } catch {
+                addLog('CRITICAL_ERR: LEADERBOARD_UNAVAILABLE');
+            }
         }
 
         function addLog(msg) {
@@ -183,9 +217,11 @@
             document.getElementById('clock').textContent = n.toISOString().split('T')[1].replace('Z', '').slice(0, 11);
         }, 33);
 
-        renderLeaderboard();
-        addLog("QUERY_EXECUTED: SELECT TOP 10 FROM OPERATORS");
-        addLog("VECTORS_NORMALIZED");
+        (async () => {
+            await fetchMe();
+            await fetchLeaderboard();
+            addLog("VECTORS_NORMALIZED");
+        })();
     </script>
 </body>
 </html>

@@ -24,13 +24,14 @@
         .matrix-cell {
             border: 1px solid var(--matrix-green-dim);
             position: relative;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            gap: 4px;
-            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             background: rgba(0,0,0,0.3);
             transition: all 0.3s;
+            font-family: var(--font-display);
+            font-size: 84px;
+            cursor: pointer;
         }
 
         .matrix-cell:hover {
@@ -38,20 +39,9 @@
             background: var(--matrix-green-faint);
         }
 
-        .sub-cell {
-            border: 1px solid var(--matrix-green-faint);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-family: var(--font-display);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .sub-cell:hover {
-            background: var(--matrix-green-dim);
-            color: var(--fui-white);
+        .matrix-cell.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
         }
 
         .marker-X { color: var(--matrix-green); text-shadow: 0 0 10px var(--matrix-green); }
@@ -165,37 +155,75 @@
     <script>
         const matrix = document.getElementById('matrix');
         const logContainer = document.getElementById('log-container');
+        const turnIndicator = document.querySelector('.turn-indicator');
+        const gameId = new URLSearchParams(window.location.search).get('id');
+
+        let ws;
+        let myUid = null;
+        let myMark = null;
+        let currentTurnUid = null;
+        let board = Array(9).fill(null);
+
+        async function fetchMe() {
+            const response = await fetch('/me');
+            if (!response.ok) {
+                window.location.href = '/login.html';
+                return;
+            }
+            const data = await response.json();
+            myUid = data.uid;
+        }
 
         function initMatrix() {
-            for(let m=0; m<9; m++) {
+            matrix.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'matrix-cell';
-                cell.dataset.index = m;
-                
-                for(let s=0; s<9; s++) {
-                    const subCell = document.createElement('div');
-                    subCell.className = 'sub-cell';
-                    subCell.dataset.matrix = m;
-                    subCell.dataset.sub = s;
-                    subCell.addEventListener('click', () => handleMove(m, s, subCell));
-                    cell.appendChild(subCell);
-                }
+                cell.dataset.index = i;
+                cell.addEventListener('click', () => handleMove(i));
                 matrix.appendChild(cell);
             }
         }
 
-        function handleMove(m, s, el) {
-            if (el.textContent) return;
+        function updateTurnIndicator(winner, isDraw, forfeit) {
+            if (winner) {
+                const outcome = winner === myUid ? 'MISSION_SUCCESS' : 'MISSION_FAILED';
+                const suffix = forfeit ? ' // FORFEIT' : '';
+                turnIndicator.textContent = `${outcome}${suffix}`;
+                return;
+            }
+            if (isDraw) {
+                turnIndicator.textContent = '_STALEMATE_';
+                return;
+            }
+            if (currentTurnUid === myUid) {
+                turnIndicator.textContent = '_YOUR_TURN_';
+            } else {
+                turnIndicator.textContent = '_OPPONENT_TURN_';
+            }
+        }
+
+        function renderBoard() {
+            const cells = matrix.querySelectorAll('.matrix-cell');
+            cells.forEach((cell, idx) => {
+                const mark = board[idx];
+                cell.textContent = mark || '';
+                cell.classList.remove('marker-X', 'marker-O', 'disabled');
+                if (mark === 'X') cell.classList.add('marker-X');
+                if (mark === 'O') cell.classList.add('marker-O');
+                if (mark || currentTurnUid !== myUid) {
+                    cell.classList.add('disabled');
+                }
+            });
+        }
+
+        function handleMove(index) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            if (currentTurnUid !== myUid) return;
+            if (board[index]) return;
+
             if (window.HUDAudio) HUDAudio.click();
-            el.textContent = 'X';
-            el.className += ' marker-X';
-            addLog(`MOVE_IDENTIFIED: POS_${m}_${s} // TYPE_X`);
-            
-            // Mock opponent move
-            setTimeout(() => {
-                addLog(`INBOUND_MOVE: VECTOR_CALCULATING...`);
-                // Simple AI or random for mock
-            }, 1000);
+            ws.send(JSON.stringify({ type: 'move', position: index }));
         }
 
         function addLog(msg) {
@@ -204,9 +232,50 @@
             const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
             entry.innerHTML = `<span class="timestamp">[${time}]</span> <span class="message">${msg}</span>`;
             logContainer.prepend(entry);
-            
-            // SFX
             if (window.HUDAudio) HUDAudio.beep();
+        }
+
+        function connectGameSocket() {
+            if (!gameId) {
+                addLog('CRITICAL_ERR: MISSING_GAME_ID');
+                return;
+            }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/game/${gameId}`);
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'error') {
+                    addLog(`CRITICAL_ERR: ${data.message}`);
+                    return;
+                }
+
+                if (data.type === 'game_state') {
+                    board = data.board || Array(9).fill(null);
+                    currentTurnUid = data.turn;
+                    myMark = data.your_mark;
+                    renderBoard();
+                    updateTurnIndicator(data.winner, data.is_draw, data.forfeit);
+                    return;
+                }
+
+                if (data.type === 'game_over') {
+                    board = data.board || board;
+                    renderBoard();
+                    updateTurnIndicator(data.winner, data.is_draw, data.forfeit);
+                    addLog('MATCH_CONCLUDED');
+                }
+            };
+
+            ws.onclose = () => {
+                addLog('COMMS_CHANNEL_CLOSED');
+            };
+
+            ws.onerror = () => {
+                addLog('CRITICAL_ERR: GAME_STREAM_FAILURE');
+            };
         }
 
         // Clock logic
@@ -215,9 +284,13 @@
             document.getElementById('clock').textContent = n.toISOString().split('T')[1].replace('Z', '').slice(0, 11);
         }, 33);
 
-        initMatrix();
-        addLog("COMBAT_SYSTEMS_ONLINE");
-        addLog("AWAITING_INITIAL_VECTOR");
+        (async () => {
+            await fetchMe();
+            initMatrix();
+            connectGameSocket();
+            addLog('COMBAT_SYSTEMS_ONLINE');
+            addLog('AWAITING_INITIAL_VECTOR');
+        })();
     </script>
 </body>
 </html>
