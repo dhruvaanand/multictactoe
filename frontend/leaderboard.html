@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARENA_OS // LEADERBOARD_VECTORS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="hud_core.css">
     <script src="fui_audio.js"></script>
     <style>
@@ -67,16 +70,19 @@
         }
     </style>
 </head>
+
 <body class="boot-anim">
     <div class="scanlines"></div>
     <div class="grid"></div>
     <div class="vignette"></div>
 
     <div class="hud-layout">
-        <header style="grid-column: 1 / -1; border-bottom: 1px solid var(--matrix-green-dim); display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 5px;">
+        <header
+            style="grid-column: 1 / -1; border-bottom: 1px solid var(--matrix-green-dim); display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 5px;">
             <div>
                 <div style="font-size: 9px; opacity: 0.5;">DATA_SYNC: ACTIVE_CONTINUUM</div>
-                <div style="font-family: var(--font-display); font-weight: bold; font-size: 18px;">GLOBAL_COMBAT_LEADERBOARD</div>
+                <div style="font-family: var(--font-display); font-weight: bold; font-size: 18px;">
+                    GLOBAL_COMBAT_LEADERBOARD</div>
             </div>
             <div style="text-align: right;">
                 <div style="font-size: 9px; opacity: 0.5;">QUERY_PROTOCOL: SQL_VECTOR_B</div>
@@ -100,11 +106,13 @@
 
                     <div class="stat-label">TOP_OPERATOR_ELO</div>
                     <div class="stat-value">SR-2850</div>
-                    <div class="performance-bar"><div class="performance-fill" style="width: 95%;"></div></div>
-                    
+                    <div class="performance-bar">
+                        <div class="performance-fill" style="width: 95%;"></div>
+                    </div>
+
                     <div style="margin-top: 20px;" class="stat-label">AVERAGE_COMBAT_DUR</div>
                     <div class="stat-value">12:45 MIN</div>
-                    
+
                     <div style="margin-top: 20px;" class="stat-label">GLOBAL_PARTICIPATION</div>
                     <div class="stat-value">12,402 ACT</div>
                 </div>
@@ -128,7 +136,8 @@
             </div>
         </aside>
 
-        <footer style="grid-column: 1 / -1; border-top: 1px solid var(--matrix-green-dim); display: flex; align-items: center; justify-content: space-between;">
+        <footer
+            style="grid-column: 1 / -1; border-top: 1px solid var(--matrix-green-dim); display: flex; align-items: center; justify-content: space-between;">
             <div style="font-family: var(--font-mono); font-size: 10px;">
                 ROOT / SYSTEMS / ANALYTICS / <span style="color: var(--fui-white);">LEADERBOARD_V1.12</span>
             </div>
@@ -163,12 +172,11 @@
         }
 
         function renderLeaderboard(players) {
-            const top = players.slice(0, 10);
-            leaderboard.innerHTML = top.map((op, i) => {
+            leaderboard.innerHTML = players.map((op, i) => {
                 const winProxy = Math.max(30, Math.min(95, Math.round(((op.elo - 800) / 2000) * 100)));
                 return `
                 <div class="leader-entry">
-                    <div class="rank-num">#${(i+1).toString().padStart(2, '0')}</div>
+                    <div class="rank-num">#${(i + 1).toString().padStart(2, '0')}</div>
                     <div style="font-size: 9px; opacity: 0.5;">UID: ${op.uid}</div>
                     <div style="font-weight: bold; font-size: 14px;">${op.name}</div>
                     <div style="text-align: right;">
@@ -206,7 +214,7 @@
             const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
             entry.innerHTML = `<span class="timestamp">[${time}]</span> <span class="message">${msg}</span>`;
             logContainer.prepend(entry);
-            
+
             // SFX
             if (window.HUDAudio) HUDAudio.beep();
         }
@@ -224,4 +232,5 @@
         })();
     </script>
 </body>
+
 </html>

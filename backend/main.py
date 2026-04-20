@@ -25,6 +25,8 @@ async def rebuild_encodings_cache():
     return await asyncio.to_thread(build_encodings_cache, db_images_dict)
 
 app = FastAPI(lifespan=lifespan)
+
+# Routers MUST be included before mounting the static file system to /
 app.include_router(auth_router)
 app.include_router(lobby_router)
 app.include_router(game_router)
@@ -59,5 +61,6 @@ async def leaderboard(request: Request):
 async def admin_rebuild_encodings(request: Request):
     request.app.state.encodings_cache = await rebuild_encodings_cache()
     return {"status": "ok", "cache_size": len(request.app.state.encodings_cache)}
+
 
 app.mount("/", StaticFiles(directory="frontend", html=True), name="static")

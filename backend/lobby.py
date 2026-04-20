@@ -56,7 +56,17 @@ async def lobby_websocket(websocket: WebSocket):
             elif message.get("type") == "accept_invite":
                 target_uid = message.get("from")
                 if target_uid in manager.active_connections:
-                    new_game = GameSession(target_uid, uid) # target sent invite, uid accepted
+                    # Fetch names for both players to pass to GameSession
+                    p1_name, p2_name = "OPERATOR_1", "OPERATOR_2"
+                    async with mysql_pool.acquire() as conn:
+                        async with conn.cursor() as cur:
+                            await cur.execute("SELECT uid, name FROM users WHERE uid IN (%s, %s)", (target_uid, uid))
+                            rows = await cur.fetchall()
+                            for r_uid, r_name in rows:
+                                if r_uid == target_uid: p1_name = r_name
+                                if r_uid == uid: p2_name = r_name
+
+                    new_game = GameSession(target_uid, uid, p1_name, p2_name)
                     active_games[new_game.id] = new_game
                     
                     start_msg = {
@@ -92,7 +102,9 @@ async def get_players(request: Request):
     mysql_pool = request.app.state.mysql
     async with mysql_pool.acquire() as conn:
         async with conn.cursor() as cur:
-            await cur.execute("SELECT uid, name, elo_rating, is_online FROM users")
+            await cur.execute(
+                "SELECT uid, name, elo_rating, is_online FROM users WHERE is_online = TRUE ORDER BY elo_rating DESC, uid ASC"
+            )
             result = await cur.fetchall()
             
     players = []

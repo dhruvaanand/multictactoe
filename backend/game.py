@@ -11,17 +11,24 @@ from backend.session import get_uid_from_websocket
 router = APIRouter()
 
 class GameSession:
-    def __init__(self, p1_uid: str, p2_uid: str):
+    def __init__(self, p1_uid: str, p2_uid: str, p1_name: str = "PILOT_01", p2_name: str = "PILOT_02"):
         self.id = str(uuid.uuid4())
         self.p1 = p1_uid
+        self.p1_name = p1_name
         self.p2 = p2_uid
+        self.p2_name = p2_name
         self.board = [None] * 9  # 0-8 slots
         self.turn = p1_uid
         self.winner = None
         self.is_draw = False
         self.finished = False
         self.elo_applied = False
+        self.match_record_saved = False
         self.forfeit = False
+        self.p1_rating_before = None
+        self.p2_rating_before = None
+        self.p1_rating_after = None
+        self.p2_rating_after = None
 
     def make_move(self, uid: str, position: int) -> bool:
         if self.winner or self.is_draw:
@@ -53,17 +60,32 @@ class GameSession:
         ]
         return any(all(self.board[i] == mark for i in combo) for combo in winning_combos)
 
+    def calculate_elo_updates(self, p1_rating, p2_rating):
+        """Returns (new_p1, new_p2, change_p1, change_p2)"""
+        if self.is_draw:
+            res = "draw"
+        elif self.winner == self.p1:
+            res = "win"
+        else:
+            res = "loss"
+        
+        new_p1, new_p2 = update_elo(p1_rating, p2_rating, res)
+        return new_p1, new_p2, new_p1 - p1_rating, new_p2 - p2_rating
+
     def to_dict(self):
         return {
             "game_id": self.id,
             "p1": self.p1,
+            "p1_name": self.p1_name,
             "p2": self.p2,
+            "p2_name": self.p2_name,
             "board": self.board,
             "turn": self.turn,
             "winner": self.winner,
             "is_draw": self.is_draw,
             "finished": self.finished,
             "forfeit": self.forfeit,
+            "elo_updates": getattr(self, "elo_updates", None)
         }
 
     def opponent_of(self, uid: str) -> Optional[str]:
@@ -118,13 +140,13 @@ async def _apply_elo(mysql_pool, game: GameSession):
 
             p1_rating = ratings[game.p1]
             p2_rating = ratings[game.p2]
+            game.p1_rating_before = p1_rating
+            game.p2_rating_before = p2_rating
 
-            if game.is_draw:
-                new_p1, new_p2 = update_elo(p1_rating, p2_rating, "draw")
-            elif game.winner == game.p1:
-                new_p1, new_p2 = update_elo(p1_rating, p2_rating, "win")
-            else:
-                new_p1, new_p2 = update_elo(p1_rating, p2_rating, "loss")
+            new_p1, new_p2, diff1, diff2 = game.calculate_elo_updates(p1_rating, p2_rating)
+            game.elo_updates = {game.p1: diff1, game.p2: diff2}
+            game.p1_rating_after = new_p1
+            game.p2_rating_after = new_p2
 
             await cur.execute("UPDATE users SET elo_rating = %s WHERE uid = %s", (new_p1, game.p1))
             await cur.execute("UPDATE users SET elo_rating = %s WHERE uid = %s", (new_p2, game.p2))
@@ -133,10 +155,65 @@ async def _apply_elo(mysql_pool, game: GameSession):
     game.elo_applied = True
 
 
+async def _persist_match_record(mysql_pool, game: GameSession):
+    if game.match_record_saved:
+        return
+
+    if not game.elo_applied:
+        return
+
+    if None in (game.p1_rating_before, game.p2_rating_before, game.p1_rating_after, game.p2_rating_after):
+        return
+
+    async with mysql_pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                INSERT INTO match_history (
+                    game_id,
+                    p1_uid,
+                    p2_uid,
+                    winner_uid,
+                    is_draw,
+                    forfeit,
+                    p1_rating_before,
+                    p2_rating_before,
+                    p1_rating_after,
+                    p2_rating_after
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    winner_uid = VALUES(winner_uid),
+                    is_draw = VALUES(is_draw),
+                    forfeit = VALUES(forfeit),
+                    p1_rating_before = VALUES(p1_rating_before),
+                    p2_rating_before = VALUES(p2_rating_before),
+                    p1_rating_after = VALUES(p1_rating_after),
+                    p2_rating_after = VALUES(p2_rating_after),
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    game.id,
+                    game.p1,
+                    game.p2,
+                    game.winner,
+                    game.is_draw,
+                    game.forfeit,
+                    game.p1_rating_before,
+                    game.p2_rating_before,
+                    game.p1_rating_after,
+                    game.p2_rating_after,
+                ),
+            )
+        await conn.commit()
+
+    game.match_record_saved = True
+
+
 async def conclude_game(game: GameSession, mysql_pool):
     if not game.finished:
         return
     await _apply_elo(mysql_pool, game)
+    await _persist_match_record(mysql_pool, game)
     await broadcast_game_state(game)
 
     players = game_connections.get(game.id, {})

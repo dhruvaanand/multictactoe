@@ -12,6 +12,10 @@
     <link rel="stylesheet" href="hud_core.css">
     <script src="fui_audio.js"></script>
     <style>
+        .hud-layout {
+            grid-template-columns: 300px 1fr;
+        }
+
         .roster-table {
             width: 100%;
             border-collapse: separate;
@@ -66,25 +70,60 @@
             border-color: var(--matrix-green-dim);
         }
 
-        .game-card {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            margin-bottom: 10px;
-            border: 1px solid var(--matrix-green-dim);
-            background: var(--matrix-green-faint);
-        }
-
-        .game-card:hover {
-            border-color: var(--matrix-green);
-        }
-
         .rank-badge {
             font-family: var(--font-display);
             font-weight: bold;
             font-size: 18px;
             color: var(--fui-white);
+        }
+
+        /* Tactical Scrollbar Theme */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 255, 65, 0.05);
+            border-left: 1px solid var(--matrix-green-dim);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--matrix-green-dim);
+            border: 1px solid var(--matrix-green);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--matrix-green);
+            box-shadow: 0 0 10px var(--matrix-green);
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--matrix-green-dim);
+            color: var(--matrix-green);
+            font-family: var(--font-mono);
+            padding: 10px 15px;
+            font-size: 12px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: var(--matrix-green);
+            box-shadow: 0 0 10px var(--matrix-green-faint);
+            background: rgba(0, 255, 65, 0.05);
+        }
+
+        .search-input::placeholder {
+            color: var(--matrix-green-dim);
+            opacity: 0.5;
         }
     </style>
 </head>
@@ -114,10 +153,17 @@
                 <div class="metadata-label">PLAYER_STATISTICS</div>
                 <div style="text-align: center; margin: 20px 0;">
                     <div id="current-operator-elo" class="rank-badge">SR-0000</div>
-                    <div id="current-operator-name" style="font-size: 12px; font-weight: bold; margin-top: 4px;">OPERATOR_UNKNOWN</div>
+                    <div id="current-operator-name" style="font-size: 12px; font-weight: bold; margin-top: 4px;">
+                        OPERATOR_UNKNOWN</div>
                     <div id="current-operator-uid" style="font-size: 10px; opacity: 0.8;">UID: UNKNOWN</div>
                 </div>
                 <div class="oscilloscope" style="height: 60px;"></div>
+                <div style="margin: 20px 10px;">
+                    <a href="/leaderboard.html" class="button"
+                        style="display: block; text-align: center; text-decoration: none; padding: 10px; font-size: 12px; margin-bottom: 10px;">
+                        [ VIEW_LEADERBOARD ]
+                    </a>
+                </div>
                 <div class="metadata-label">COMBAT_LOGS</div>
                 <div id="log-container" class="log-container" style="height: 200px;">
                     <!-- Logs -->
@@ -126,7 +172,16 @@
         </aside>
 
         <main class="main-view" style="overflow-y: auto; padding-right: 10px;">
-            <div class="metadata-label">ACTIVE_SESSION_LIST</div>
+            <div class="metadata-label">ONLINE_OPERATOR_LIST</div>
+
+            <div class="search-container">
+                <input type="text" id="player-search" class="search-input" placeholder="SEARCH_OPERATOR_NAME_OR_UID..."
+                    autocomplete="off">
+                <div
+                    style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 8px; opacity: 0.5;">
+                    F1_QUERY</div>
+            </div>
+
             <table class="roster-table">
                 <thead>
                     <tr>
@@ -143,21 +198,6 @@
             </table>
         </main>
 
-        <aside class="sidebar-right">
-            <div class="fui-box" style="height: 100%;">
-                <div class="fui-box-inner"></div>
-                <div class="metadata-label">ACTIVE_ENGAGEMENTS</div>
-                <div id="active-games">
-                    <!-- Game cards -->
-                </div>
-
-                <div style="margin-top: 40px; text-align: center;">
-                    <button class="fui-btn" style="width: 100%;">CREATE_NEW_SORTIE</button>
-                    <div style="margin-top: 10px; font-size: 8px; opacity: 0.5;">MATCHMAKING_ENCRYPTED</div>
-                </div>
-            </div>
-        </aside>
-
         <footer
             style="grid-column: 1 / -1; border-top: 1px solid var(--matrix-green-dim); display: flex; align-items: center; justify-content: space-between;">
             <div style="font-family: var(--font-mono); font-size: 10px;">
@@ -172,14 +212,15 @@
 
     <script>
         const rosterBody = document.getElementById('roster-body');
-        const activeGames = document.getElementById('active-games');
         const logContainer = document.getElementById('log-container');
         const currentOperatorName = document.getElementById('current-operator-name');
         const currentOperatorUid = document.getElementById('current-operator-uid');
         const currentOperatorElo = document.getElementById('current-operator-elo');
+        const searchInput = document.getElementById('player-search');
 
         let currentUid = 'UNKNOWN';
         let ws;
+        let allPlayers = [];
 
         async function fetchMe() {
             try {
@@ -205,15 +246,35 @@
                     window.location.href = '/login.html';
                     return;
                 }
-                const players = await response.json();
-                renderRoster(players);
+                allPlayers = await response.json();
+                renderRoster(allPlayers);
             } catch (err) {
                 addLog('CRITICAL_ERR: PLAYER_FETCH_FAILED');
             }
         }
 
+        searchInput.addEventListener('input', () => {
+            renderRoster(allPlayers);
+        });
+
         function renderRoster(players) {
-            rosterBody.innerHTML = players.map(p => `
+            const query = searchInput.value.toLowerCase();
+
+            // Filter and Sort: Online first, then by ELO
+            const filtered = players.filter(p =>
+                p.name.toLowerCase().includes(query) ||
+                p.uid.toString().includes(query)
+            ).sort((a, b) => {
+                // Online first
+                const statusA = a.status === 'ONLINE' ? 1 : 0;
+                const statusB = b.status === 'ONLINE' ? 1 : 0;
+                if (statusA !== statusB) return statusB - statusA;
+
+                // Then Elo
+                return b.elo - a.elo;
+            });
+
+            rosterBody.innerHTML = filtered.map(p => `
                 <tr class="roster-row">
                     <td style="font-family: var(--font-mono);">${p.uid}</td>
                     <td style="font-weight: bold;">${p.name}</td>
@@ -263,23 +324,6 @@
             ws.onclose = () => setTimeout(connectLobby, 5000);
         }
 
-        const mockGames = [
-            { id: 'GAME_09', players: 'DHRUVA vs NEHA', status: 'IN_PROGRESS' },
-            { id: 'GAME_12', players: 'SOHAM vs VARSHITH', status: 'LOBBY' },
-        ];
-
-        function renderGames() {
-            activeGames.innerHTML = mockGames.map(g => `
-                <div class="game-card">
-                    <div>
-                        <div style="font-size: 10px; opacity: 0.7;">${g.id}</div>
-                        <div style="font-weight: bold;">${g.players}</div>
-                    </div>
-                    <span style="font-size: 9px; color: var(--matrix-green);">${g.status}</span>
-                </div>
-            `).join('');
-        }
-
         function addLog(msg) {
             const entry = document.createElement('div');
             entry.className = 'log-entry';
@@ -299,7 +343,6 @@
             await fetchMe();
             fetchPlayers();
             connectLobby();
-            renderGames();
             addLog("SECTOR_SCAN_COMPLETE");
             addLog("ROSTER_SYNCHRONIZED_WITH_CORE");
         })();

@@ -15,7 +15,8 @@ dependencies = [
     "pillow>=12.1.1",
     "python-multipart>=0.0.24",
     "setuptools<71.0",
-    "uvicorn>=0.44.0",
+    "uvicorn[standard]>=0.44.0",
+    "websockets>=16.0",
 ]
 
 [tool.uv.sources]
