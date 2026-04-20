@@ -61,7 +61,6 @@ async def main():
     mongo_client = AsyncIOMotorClient(MONGO_URL)
     mongo_col = mongo_client["multictactoe"]["images"]
 
-    # use a pool instead of a single connection
     pool = await aiomysql.create_pool(**MYSQL_CONFIG, minsize=5, maxsize=20)
 
     with open("batch_data.csv") as f:

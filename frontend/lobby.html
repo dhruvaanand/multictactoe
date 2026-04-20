@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARENA_OS // TACTICAL_LOBBY</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="hud_core.css">
     <script src="fui_audio.js"></script>
     <style>
@@ -39,8 +42,13 @@
             border-bottom: 1px solid var(--matrix-green-dim);
         }
 
-        .roster-row td:first-child { border-left: 1px solid var(--matrix-green-dim); }
-        .roster-row td:last-child { border-right: 1px solid var(--matrix-green-dim); }
+        .roster-row td:first-child {
+            border-left: 1px solid var(--matrix-green-dim);
+        }
+
+        .roster-row td:last-child {
+            border-right: 1px solid var(--matrix-green-dim);
+        }
 
         .status-tag {
             padding: 2px 6px;
@@ -48,8 +56,15 @@
             border: 1px solid var(--matrix-green);
         }
 
-        .status-online { background: var(--matrix-green); color: var(--fui-black); }
-        .status-offline { opacity: 0.5; border-color: var(--matrix-green-dim); }
+        .status-online {
+            background: var(--matrix-green);
+            color: var(--fui-black);
+        }
+
+        .status-offline {
+            opacity: 0.5;
+            border-color: var(--matrix-green-dim);
+        }
 
         .game-card {
             display: flex;
@@ -73,16 +88,19 @@
         }
     </style>
 </head>
+
 <body class="boot-anim">
     <div class="scanlines"></div>
     <div class="grid"></div>
     <div class="vignette"></div>
 
     <div class="hud-layout">
-        <header style="grid-column: 1 / -1; border-bottom: 1px solid var(--matrix-green-dim); display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 5px;">
+        <header
+            style="grid-column: 1 / -1; border-bottom: 1px solid var(--matrix-green-dim); display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 5px;">
             <div>
                 <div style="font-size: 9px; opacity: 0.5;">AUTH_LEVEL: LEVEL_2_OPERATOR</div>
-                <div style="font-family: var(--font-display); font-weight: bold; font-size: 18px;">TACTICAL_DEPLOYMENT_ROSTER</div>
+                <div style="font-family: var(--font-display); font-weight: bold; font-size: 18px;">
+                    TACTICAL_DEPLOYMENT_ROSTER</div>
             </div>
             <div style="text-align: right;">
                 <div style="font-size: 9px; opacity: 0.5;">SECTOR: GOMMY_GRID_4</div>
@@ -131,7 +149,7 @@
                 <div id="active-games">
                     <!-- Game cards -->
                 </div>
-                
+
                 <div style="margin-top: 40px; text-align: center;">
                     <button class="fui-btn" style="width: 100%;">CREATE_NEW_SORTIE</button>
                     <div style="margin-top: 10px; font-size: 8px; opacity: 0.5;">MATCHMAKING_ENCRYPTED</div>
@@ -139,7 +157,8 @@
             </div>
         </aside>
 
-        <footer style="grid-column: 1 / -1; border-top: 1px solid var(--matrix-green-dim); display: flex; align-items: center; justify-content: space-between;">
+        <footer
+            style="grid-column: 1 / -1; border-top: 1px solid var(--matrix-green-dim); display: flex; align-items: center; justify-content: space-between;">
             <div style="font-family: var(--font-mono); font-size: 10px;">
                 ROOT / SYSTEMS / LOBBY / <span style="color: var(--fui-white);">SEC_ROSTER_MGMT</span>
             </div>
@@ -155,30 +174,63 @@
         const activeGames = document.getElementById('active-games');
         const logContainer = document.getElementById('log-container');
 
-        const mockPlayers = [
-            { uid: '2025111009', name: 'DHRUVA_ANAND', elo: 1250, status: 'ONLINE' },
-            { uid: '2025111001', name: 'NEHA_DUVVURU', elo: 1100, status: 'ONLINE' },
-            { uid: '2025111002', name: 'KISHEN_N', elo: 1320, status: 'OFFLINE' },
-            { uid: '2025111003', name: 'VARSHITH_A', elo: 1050, status: 'ONLINE' },
-            { uid: '2025111004', name: 'SOHAM_C', elo: 1180, status: 'AWAY' },
-        ];
+        const currentUid = localStorage.getItem('arena_operator_uid') || 'GUEST';
+        let ws;
 
-        const mockGames = [
-            { id: 'GAME_09', players: 'DHRUVA vs NEHA', status: 'IN_PROGRESS' },
-            { id: 'GAME_12', players: 'SOHAM vs VARSHITH', status: 'LOBBY' },
-        ];
+        async function fetchPlayers() {
+            try {
+                const response = await fetch('/lobby/players');
+                const players = await response.json();
+                renderRoster(players);
+            } catch (err) {
+                addLog('CRITICAL_ERR: PLAYER_FETCH_FAILED');
+            }
+        }
 
-        function renderRoster() {
-            rosterBody.innerHTML = mockPlayers.map(p => `
+        function renderRoster(players) {
+            rosterBody.innerHTML = players.map(p => `
                 <tr class="roster-row">
                     <td style="font-family: var(--font-mono);">${p.uid}</td>
                     <td style="font-weight: bold;">${p.name}</td>
                     <td>${p.elo}</td>
                     <td><span class="status-tag ${p.status === 'ONLINE' ? 'status-online' : 'status-offline'}">${p.status}</span></td>
-                    <td><button class="fui-btn" style="padding: 5px 10px; font-size: 10px;">INVITE</button></td>
+                    <td><button class="fui-btn" style="padding: 5px 10px; font-size: 10px;" ${p.status === 'OFFLINE' ? 'disabled' : ''} onclick="sendInvite('${p.uid}')">INVITE</button></td>
                 </tr>
             `).join('');
         }
+
+        function sendInvite(target) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'invite', target }));
+                addLog(`MSG: SENT_INVITE_TO_${target}`);
+            }
+        }
+
+        function connectLobby() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/lobby/${currentUid}`);
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'player_update') {
+                    fetchPlayers();
+                    addLog(`MSG: OPERATOR_${data.uid}_${data.status.toUpperCase()}`);
+                } else if (data.type === 'invite_received') {
+                    addLog(`CRITICAL: INCOMING_SORTIE_FROM_${data.from}`);
+                    if (confirm(`Incoming sortie request from UID ${data.from}. Accept?`)) {
+                        addLog('MSG: SORTIE_ACCEPTED');
+                    }
+                }
+            };
+
+            ws.onerror = () => addLog('CRITICAL_ERR: COMMS_FAILURE');
+            ws.onclose = () => setTimeout(connectLobby, 5000);
+        }
+
+        const mockGames = [
+            { id: 'GAME_09', players: 'DHRUVA vs NEHA', status: 'IN_PROGRESS' },
+            { id: 'GAME_12', players: 'SOHAM vs VARSHITH', status: 'LOBBY' },
+        ];
 
         function renderGames() {
             activeGames.innerHTML = mockGames.map(g => `
@@ -198,21 +250,21 @@
             const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
             entry.innerHTML = `<span class="timestamp">[${time}]</span> <span class="message">${msg}</span>`;
             logContainer.prepend(entry);
-            
-            // SFX
+
             if (window.HUDAudio) HUDAudio.beep();
         }
 
-        // Clock logic
         setInterval(() => {
             const n = new Date();
             document.getElementById('clock').textContent = n.toISOString().split('T')[1].replace('Z', '').slice(0, 11);
         }, 33);
 
-        renderRoster();
+        fetchPlayers();
+        connectLobby();
         renderGames();
         addLog("SECTOR_SCAN_COMPLETE");
         addLog("ROSTER_SYNCHRONIZED_WITH_CORE");
     </script>
 </body>
+
 </html>

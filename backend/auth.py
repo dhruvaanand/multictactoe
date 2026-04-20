@@ -11,7 +11,6 @@ class LoginRequest(BaseModel):
 
 @router.post("/login")
 async def login(request: Request, payload: LoginRequest):
-    # Fetch all images from MongoDB
     cursor = mongo_db.images.find({})
     db_images_dict = {}
     async for doc in cursor:
@@ -20,11 +19,7 @@ async def login(request: Request, payload: LoginRequest):
     if not db_images_dict:
         raise HTTPException(status_code=404, detail="No profile images found in database")
 
-    # Call find_closest_match exactly as per documentation
-    # Note: The facial_recognition_module has a hardcoded threshold of 0.5.
-    # While the requirement mentions 0.7, the black-box module returns None for distance > 0.5.
     try:
-        # payload.image might have data:image/jpeg;base64, prefix
         image_data = payload.image
         if "," in image_data:
             image_data = image_data.split(",")[1]
@@ -35,7 +30,6 @@ async def login(request: Request, payload: LoginRequest):
         raise HTTPException(status_code=500, detail="Internal error in biometric service")
 
     if uid:
-        # Update MySQL is_online = TRUE
         mysql_pool = request.app.state.mysql
         async with mysql_pool.acquire() as conn:
             async with conn.cursor() as cur:
@@ -51,5 +45,4 @@ async def login(request: Request, payload: LoginRequest):
             "message": f"Welcome back, UID {uid}"
         }
     else:
-        # Distance was likely > 0.5 (module's hard limit)
         raise HTTPException(status_code=401, detail="Biometric match failed")
