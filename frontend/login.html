@@ -166,7 +166,10 @@
             <div style="margin-top: 40px; text-align: center;">
                 <div class="metadata-label">BIOMETRIC_HANDSHAKE_TRIGGER</div>
                 <button id="capture-btn" class="fui-btn" style="width: 300px;">INITIATE_AUTH_SEQUENCE</button>
-                <div id="auth-status" class="auth-status">READY_FOR_SCAN</div>
+                <div id="auth-status" class="auth-status" style="margin-bottom: 20px;">READY_FOR_SCAN</div>
+                <button onclick="adminBypass()" class="fui-btn"
+                    style="width: 300px; background: rgba(0, 255, 65, 0.1); border-color: var(--matrix-green-dim); color: var(--matrix-green-dim); font-size: 10px;">[
+                    RUN_ADMIN_BYPASS ]</button>
             </div>
         </main>
 
@@ -324,6 +327,19 @@
                 captureBtn.disabled = false;
             }
         });
+
+        async function adminBypass() {
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: 'ADMIN_BYPASS' })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                localStorage.setItem('arena_operator_uid', result.uid);
+                window.location.href = '/lobby.html';
+            }
+        }
 
         initNoise();
         setupWebcam();
