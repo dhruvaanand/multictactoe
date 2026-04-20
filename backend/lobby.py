@@ -1,6 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
 import json
 from backend.database import mongo_db
+from backend.game import GameSession, active_games
 
 router = APIRouter()
 
@@ -45,6 +46,21 @@ async def lobby_websocket(websocket: WebSocket, uid: str, request: Request):
                         "type": "invite_received",
                         "from": uid
                     })
+            
+            elif message.get("type") == "accept_invite":
+                target_uid = message.get("from")
+                if target_uid in manager.active_connections:
+                    new_game = GameSession(target_uid, uid) # target sent invite, uid accepted
+                    active_games[new_game.id] = new_game
+                    
+                    start_msg = {
+                        "type": "game_start",
+                        "game_id": new_game.id,
+                        "p1": target_uid,
+                        "p2": uid
+                    }
+                    await manager.active_connections[target_uid].send_json(start_msg)
+                    await manager.active_connections[uid].send_json(start_msg)
 
     except WebSocketDisconnect:
         manager.disconnect(uid)

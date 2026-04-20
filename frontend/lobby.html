@@ -219,7 +219,13 @@
                     addLog(`CRITICAL: INCOMING_SORTIE_FROM_${data.from}`);
                     if (confirm(`Incoming sortie request from UID ${data.from}. Accept?`)) {
                         addLog('MSG: SORTIE_ACCEPTED');
+                        ws.send(JSON.stringify({ type: 'accept_invite', from: data.from }));
                     }
+                } else if (data.type === 'game_start') {
+                    addLog(`MSG: GAME_STARTING_ID_${data.id}`);
+                    setTimeout(() => {
+                        window.location.href = `/game.html?id=${data.game_id}`;
+                    }, 1000);
                 }
             };
 
